@@ -105,16 +105,31 @@ raw:clean
 };
 }
 
+function letterIndex(char){
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return alphabet.indexOf(char.toUpperCase());
+}
+
 function decodeLot(lot){
-if(lot.length<7) return null;
+    if(lot.length < 7) return null;
 
-const yearCode=lot.substring(3,5);
-const monthCode=lot.substring(5,7);
+    // AREA dari karakter pertama
+    const areaNumber = letterIndex(lot[0]);
+    const area = "PM" + areaNumber;
 
-const year=2000+(parseInt(yearCode[0])*10)+letterToNumber(yearCode[1]);
-const month=(parseInt(monthCode[0])*10)+letterToNumber(monthCode[1]);
+    // Tahun
+    const yearCode = lot.substring(3,5);
+    const year = 2000 +
+        (parseInt(yearCode[0]) * 10) +
+        letterToNumber(yearCode[1]);
 
-return {year,month};
+    // Bulan
+    const monthCode = lot.substring(5,7);
+    const month =
+        (parseInt(monthCode[0]) * 10) +
+        letterToNumber(monthCode[1]);
+
+    return { year, month, area };
 }
 
 window.processCode=function(textFromScanner){
@@ -131,7 +146,7 @@ if(!lot){ alert("Format LOT tidak valid"); return; }
 
 year=lot.year;
 month=lot.month;
-area="LOT PPC";
+area = lot.area;
 
 let date=new Date(year,month-1,1);
 expired=monthDiff(date)>2;
@@ -222,4 +237,5 @@ render();
 </script>
 
 </body>
+
 </html>
