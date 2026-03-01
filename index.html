@@ -141,28 +141,34 @@ let expired=false;
 let month,year,area="";
 
 if(input.length>8){ // LOT
-let lot=decodeLot(input);
-if(!lot){ alert("Format LOT tidak valid"); return; }
 
-year=lot.year;
-month=lot.month;
-area = lot.area;
+    let lot = decodeLot(input);
+    if(!lot){
+        alert("Format LOT tidak valid");
+        return;
+    }
 
-let date=new Date(year,month-1,1);
-expired=monthDiff(date)>2;
+    year = lot.year;
+    month = lot.month;
+    area = lot.area;   // ✅ FIX DI SINI
 
-result.className=expired?"red":"green";
-result.innerHTML=`
-<h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
-<p>
-<strong>Kode:</strong> ${input}<br>
-<strong>Area:</strong> ${area}<br>
-<strong>Produksi:</strong> ${month}/${year}<br>
-<strong>Umur:</strong> ${diff(date)}
-</p>`;
-result.style.display="block";
+    let date = new Date(year, month-1, 1);
+    expired = monthDiff(date) > 2;
 
-saveHistory(input,expired?"EXPIRED":"OK");
+    result.className = expired ? "red" : "green";
+    result.innerHTML = `
+    <h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
+    <p>
+    <strong>Kode:</strong> ${input}<br>
+    <strong>Area:</strong> ${area}<br>
+    <strong>Produksi:</strong> ${month}/${year}<br>
+    <strong>Umur:</strong> ${diff(date)}
+    </p>`;
+
+    result.style.display="block";
+
+    saveHistory(input, expired?"EXPIRED":"OK");
+}
 }
 else{ // kode pendek
 let data=decodeShort(input);
@@ -239,3 +245,4 @@ render();
 </body>
 
 </html>
+
