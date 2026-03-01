@@ -1,69 +1,16 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FG Scanner PM Lines</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; margin: 0; padding: 16px; }
-        .container { max-width: 520px; margin: auto; }
-        h1 { text-align: center; color: #38bdf8; font-size: 24px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        input, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: none; font-size: 16px; box-sizing: border-box; }
-        input { background: #334155; color: white; border: 1px solid #475569; }
-        button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
-        .btn-secondary { background: #e5e7eb; color: #1f2937; margin-top: 15px; }
-        #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; background: #000; }
-        #result { margin-top: 15px; padding: 16px; border-radius: 14px; text-align: center; display: none; }
-        .green { background: #065f46; border: 2px solid #10b981; display: block !important; }
-        .red { background: #7f1d1d; border: 2px solid #ef4444; display: block !important; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th, td { padding: 12px 8px; border-bottom: 1px solid #334155; text-align: left; }
-        th { color: #94a3b8; text-transform: uppercase; font-size: 11px; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>PPC Quality & Traceability</h1>
-
-    <div class="card">
-        <input id="manual" placeholder="Input kode manual (Contoh: AFH)">
-        <button onclick="processCode(document.getElementById('manual').value)">Submit Kode</button>
-
-        <hr style="border-top:1px solid #334155; margin:20px 0;">
-
-        <button onclick="startCamera()">Buka Kamera Scan</button>
-        <div id="reader"></div>
-
-        <input type="file" accept="image/*" onchange="scanFile(event)">
-    </div>
-
-    <div id="result"></div>
-
-    <h3>Riwayat Pemindaian</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Waktu</th>
-                <th>Barcode</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="history"></tbody>
-    </table>
-</div>
-
 <script>
 const yearStart = 2022;
 const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const monthLetters = "ABCDEFGHJKLM";
 
+function letterToNumber(char){
+    const map={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,J:9};
+    return map[char.toUpperCase()] ?? 0;
+}
+
 function decode(code) {
     if (!code) return null;
 
-    // cari pola 2 huruf + H/I/M
     const match = code.toUpperCase().match(/[A-Z]{2}[HIM]/);
     if (!match) return null;
 
@@ -72,11 +19,7 @@ function decode(code) {
     let m = monthLetters.indexOf(cleanCode[1]);
     let areaCode = cleanCode[2];
 
-    const areaMap = {
-        H: "PM8",
-        I: "PM9",
-        M: "PM12"
-    };
+    const areaMap = { H:"PM8", I:"PM9", M:"PM12" };
 
     if (y < 0 || m < 0) return null;
 
@@ -89,41 +32,98 @@ function decode(code) {
     };
 }
 
+// ===== DECODE LOT =====
+function decodeLot(lot){
+    if(lot.length < 7) return null;
+
+    const yearCode = lot.substring(3,5);
+    const monthCode = lot.substring(5,7);
+
+    const year = 2000 + (parseInt(yearCode[0]) * 10) + letterToNumber(yearCode[1]);
+    const month = (parseInt(monthCode[0]) * 10) + letterToNumber(monthCode[1]);
+
+    return {year, month};
+}
+
+function monthDiff(date){
+    const now=new Date();
+    return (now.getFullYear()-date.getFullYear())*12+
+           (now.getMonth()-date.getMonth());
+}
+
 function diff(date) {
     let now = new Date();
-    let days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    if (days < 30) return days + " hari";
+    let days = Math.floor((now - date) / 86400000);
     let months = Math.floor(days / 30);
     let remDays = days % 30;
     return months + " bulan " + remDays + " hari";
 }
 
-function processCode(code) {
-    const data = decode(code);
+function processCode(input) {
     const resultDiv = document.getElementById('result');
+
+    if(!input) return;
+
+    // cek apakah LOT panjang
+    if(input.length > 8){
+        const lotData = decodeLot(input);
+
+        if(!lotData){
+            alert("Format LOT tidak valid");
+            return;
+        }
+
+        const date = new Date(lotData.year, lotData.month-1,1);
+        const expired = monthDiff(date) > 2;
+
+        showResult(
+            expired,
+            input,
+            "LOT PPC",
+            lotData.month,
+            lotData.year,
+            diff(date)
+        );
+
+        saveHistory(input, expired ? "EXPIRED" : "OK");
+        return;
+    }
+
+    // decode kode produksi biasa
+    const data = decode(input);
 
     if (!data) {
         alert("Format tidak valid.");
         return;
     }
 
-    let ageDays = Math.floor((new Date() - data.date) / 86400000);
-    let expired = ageDays > 365;
-    let status = expired ? "EXPIRED / HOLD" : "OK - DAPAT DIKIRIM";
+    const expired = monthDiff(data.date) > 2;
+
+    showResult(
+        expired,
+        data.raw,
+        data.area,
+        data.month,
+        data.year,
+        diff(data.date)
+    );
+
+    saveHistory(data.raw, expired ? "EXPIRED" : "OK");
+}
+
+function showResult(expired, code, area, month, year, age){
+    const resultDiv=document.getElementById('result');
 
     resultDiv.className = expired ? "red" : "green";
     resultDiv.innerHTML = `
-        <h2>${status}</h2>
+        <h2>${expired ? "EXPIRED / HOLD" : "OK - DAPAT DIKIRIM"}</h2>
         <p>
-        <strong>Kode:</strong> ${data.raw}<br>
-        <strong>Area:</strong> ${data.area}<br>
-        <strong>Produksi:</strong> ${data.month}/${data.year}<br>
-        <strong>Umur:</strong> ${diff(data.date)}
+        <strong>Kode:</strong> ${code}<br>
+        <strong>Area:</strong> ${area}<br>
+        <strong>Produksi:</strong> ${month}/${year}<br>
+        <strong>Umur:</strong> ${age}
         </p>
     `;
-
-    saveHistory(data.raw, status);
-    document.getElementById('manual').value = "";
 }
 
 function saveHistory(code, status) {
@@ -172,5 +172,3 @@ function scanFile(e) {
 
 render();
 </script>
-</body>
-</html>
