@@ -211,19 +211,25 @@ h.map(r=>`
 </tr>`).join("");
 }
 
-let scanner;
+let scanner = null;
 
-window.startCamera=async function(){
+window.startCamera = async function() {
+
+if (typeof Html5Qrcode === "undefined") {
+    alert("Scanner tidak tersedia. Periksa koneksi internet.");
+    return;
+}
+
 if(scanner) await scanner.clear();
-scanner=new Html5Qrcode("reader");
+scanner = new Html5Qrcode("reader");
 
 scanner.start(
-{ facingMode:"environment" },
-{ fps:15, qrbox:{width:280,height:140}},
-(text)=>{
-processCode(text);
-scanner.stop();
-}
+    { facingMode:"environment" },
+    { fps:15, qrbox:{width:280,height:140}},
+    (text)=>{
+        processCode(text);
+        scanner.stop();
+    }
 );
 }
 
