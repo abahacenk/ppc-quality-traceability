@@ -10,44 +10,37 @@ body { font-family: 'Segoe UI'; background: #0f172a; color: white; padding: 16px
 .container { max-width: 520px; margin: auto; }
 h1 { text-align: center; color: #38bdf8; }
 
-/* CARD */
 .card { padding: 16px; border-radius: 14px; margin-bottom: 16px; }
 .card.a4 { background: #1e3a5f; border: 2px solid #38bdf8; }
 .card.f4 { background: #1e4d3a; border: 2px solid #22c55e; }
 
-/* LABEL */
 .label {
-display: inline-block;
-padding: 4px 10px;
-border-radius: 999px;
-font-size: 12px;
-font-weight: bold;
-margin-bottom: 8px;
+display:inline-block; padding:4px 10px; border-radius:999px;
+font-size:12px; font-weight:bold; margin-bottom:8px;
 }
-.label.a4 { background: #38bdf8; color: #0f172a; }
-.label.f4 { background: #22c55e; color: #022c22; }
+.label.a4 { background:#38bdf8; color:#0f172a; }
+.label.f4 { background:#22c55e; color:#022c22; }
 
-input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; }
-input { background: #334155; color: white; }
-button { background: #38bdf8; color: black; font-weight: bold; }
+input, button { width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; }
+input { background:#334155; color:white; }
+button { background:#38bdf8; color:black; font-weight:bold; }
 
-.note { font-size: 12px; color: #cbd5f5; margin-top: 5px; }
+.note { font-size:12px; color:#cbd5f5; }
 
-#result {
-margin-top: 15px;
-padding: 14px;
-border-radius: 10px;
-display:none;
-font-weight: 500;
-}
+#result { margin-top:15px; padding:14px; border-radius:10px; display:none; }
 
-/* RESULT COLORS */
 .result-a4-ok { background:#065f46; border:2px solid #38bdf8; }
 .result-a4-exp { background:#7f1d1d; border:2px solid #38bdf8; }
 
 .result-f4-ok { background:#065f46; border:2px solid #22c55e; }
 .result-f4-exp { background:#7f1d1d; border:2px solid #22c55e; }
 
+/* HISTORY */
+table { width:100%; margin-top:15px; border-collapse:collapse; font-size:12px; }
+th, td { padding:8px; border-bottom:1px solid #334155; }
+th { color:#94a3b8; text-align:left; }
+.ok { color:#22c55e; }
+.exp { color:#ef4444; }
 </style>
 </head>
 
@@ -56,33 +49,37 @@ font-weight: 500;
 
 <h1>PPC Quality</h1>
 
-<!-- ================= A4 ================= -->
+<!-- A4 -->
 <div class="card a4">
 <div class="label a4">PPC A4</div>
-
-<div class="note">
-Input kode pendek (DAH) atau LOT.<br>
-Rule: maksimal umur 2 bulan.
-</div>
-
-<input id="a4_input" placeholder="Input kode / LOT A4">
+<div class="note">Max 2 bulan</div>
+<input id="a4_input" placeholder="Kode / LOT A4">
 <button onclick="processCode('A4')">Cek A4</button>
 </div>
 
-<!-- ================= F4 ================= -->
+<!-- F4 -->
 <div class="card f4">
 <div class="label f4">PPC F4</div>
-
-<div class="note">
-Input kode pendek (DAH) atau LOT.<br>
-Rule: maksimal umur 3 bulan.
-</div>
-
-<input id="f4_input" placeholder="Input kode / LOT F4">
+<div class="note">Max 3 bulan</div>
+<input id="f4_input" placeholder="Kode / LOT F4">
 <button onclick="processCode('F4')">Cek F4</button>
 </div>
 
 <div id="result"></div>
+
+<h3>History Scan</h3>
+<table>
+<thead>
+<tr>
+<th>Waktu</th>
+<th>Type</th>
+<th>Kode</th>
+<th>Area</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody id="history"></tbody>
+</table>
 
 </div>
 
@@ -114,101 +111,106 @@ function decodeShort(code){
 const areaMap={H:"PM8",J:"PM9",M:"PM12"};
 let c=code.toUpperCase();
 
-if(c.length < 3) return null;
-
 let y=letters.indexOf(c[0]);
 let m=monthLetters.indexOf(c[1]);
 let area=areaMap[c[2]];
 
 if(y<0||m<0||!area) return null;
 
-return {
-date:new Date(yearStart+y,m,1),
-year:yearStart+y,
-month:m+1,
-area:area
-};
+return { date:new Date(yearStart+y,m,1), year:yearStart+y, month:m+1, area };
 }
 
 function letterIndex(char){
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-return alphabet.indexOf(char.toUpperCase());
+return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(char.toUpperCase());
 }
 
 function decodeLot(lot){
-if(lot.length < 7) return null;
+if(lot.length<7) return null;
 
-const areaNumber = letterIndex(lot[0]);
-const area = "PM" + areaNumber;
-
-const yearCode = lot.substring(3,5);
-const year = 2000 +
-(parseInt(yearCode[0]) * 10) +
-letterToNumber(yearCode[1]);
-
-const monthCode = lot.substring(5,7);
-const month =
-(parseInt(monthCode[0]) * 10) +
-letterToNumber(monthCode[1]);
+const area="PM"+letterIndex(lot[0]);
+const year=2000+(parseInt(lot[3])*10)+letterToNumber(lot[4]);
+const month=(parseInt(lot[5])*10)+letterToNumber(lot[6]);
 
 return { year, month, area };
 }
 
 function processCode(type){
 
-let input = type === 'A4'
+let input = type==='A4'
 ? document.getElementById("a4_input").value.trim()
 : document.getElementById("f4_input").value.trim();
 
 if(!input) return;
 
-let result=document.getElementById("result");
-let limit = (type === 'A4') ? 2 : 3;
-
+let limit = type==='A4'?2:3;
 let date, area, month, year;
 
-// decode
-if(input.length > 8){
-let lot = decodeLot(input);
-if(!lot){ alert("Format LOT tidak valid"); return; }
+if(input.length>8){
+let lot=decodeLot(input);
+if(!lot){ alert("LOT tidak valid"); return; }
 
-year = lot.year;
-month = lot.month;
-area = lot.area;
-date = new Date(year, month-1, 1);
+year=lot.year; month=lot.month; area=lot.area;
+date=new Date(year,month-1,1);
 
 }else{
-let data = decodeShort(input);
-if(!data){ alert("Format kode tidak valid"); return; }
+let data=decodeShort(input);
+if(!data){ alert("Kode tidak valid"); return; }
 
-date = data.date;
-area = data.area;
-month = data.month;
-year = data.year;
+date=data.date; area=data.area; month=data.month; year=data.year;
 }
 
-let expired = monthDiff(date) > limit;
+let expired = monthDiff(date)>limit;
 
-// SET CLASS WARNA
-if(type === 'A4'){
-result.className = expired ? "result-a4-exp" : "result-a4-ok";
-}else{
-result.className = expired ? "result-f4-exp" : "result-f4-ok";
-}
+let result=document.getElementById("result");
+
+result.className = type==='A4'
+? (expired?"result-a4-exp":"result-a4-ok")
+: (expired?"result-f4-exp":"result-f4-ok");
 
 result.innerHTML = `
-<h3>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h3>
-<p>
-<strong>Type:</strong> ${type}<br>
-<strong>Kode:</strong> ${input}<br>
-<strong>Area:</strong> ${area}<br>
-<strong>Produksi:</strong> ${month}/${year}<br>
-<strong>Umur:</strong> ${diff(date)}
-</p>
+<h3>${expired?"EXPIRED / HOLD":"OK"}</h3>
+Type: ${type}<br>
+Kode: ${input}<br>
+Area: ${area}<br>
+Produksi: ${month}/${year}<br>
+Umur: ${diff(date)}
 `;
 
 result.style.display="block";
+
+// 🔥 SAVE HISTORY
+saveHistory({
+time:new Date().toLocaleString('id-ID'),
+type,
+code:input,
+area,
+status:expired?"EXPIRED":"OK"
+});
 }
+
+function saveHistory(data){
+let h=JSON.parse(localStorage.getItem("hist")||"[]");
+h.unshift(data);
+if(h.length>50) h.pop();
+localStorage.setItem("hist",JSON.stringify(h));
+renderHistory();
+}
+
+function renderHistory(){
+let h=JSON.parse(localStorage.getItem("hist")||"[]");
+document.getElementById("history").innerHTML =
+h.map(r=>`
+<tr>
+<td>${r.time}</td>
+<td>${r.type}</td>
+<td>${r.code}</td>
+<td>${r.area}</td>
+<td class="${r.status==='OK'?'ok':'exp'}">${r.status}</td>
+</tr>
+`).join("");
+}
+
+renderHistory();
 </script>
 
 </body>
