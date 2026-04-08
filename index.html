@@ -15,25 +15,41 @@ h1 { text-align: center; color: #38bdf8; }
 .card.f4 { background: #1e4d3a; border: 2px solid #22c55e; }
 
 .label {
-display:inline-block; padding:4px 10px; border-radius:999px;
-font-size:12px; font-weight:bold; margin-bottom:8px;
+display:inline-block;
+padding:4px 10px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+margin-bottom:8px;
 }
 .label.a4 { background:#38bdf8; color:#0f172a; }
 .label.f4 { background:#22c55e; color:#022c22; }
 
-input, button { width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; }
+input, button {
+width:100%;
+padding:12px;
+margin-top:10px;
+border-radius:8px;
+border:none;
+}
 input { background:#334155; color:white; }
 button { background:#38bdf8; color:black; font-weight:bold; }
 
 .note { font-size:12px; color:#cbd5f5; }
 
-#result { margin-top:15px; padding:14px; border-radius:10px; display:none; }
+#result {
+margin-top:15px;
+padding:14px;
+border-radius:10px;
+display:none;
+}
 
+/* RESULT */
 .result-a4-ok { background:#065f46; border:2px solid #38bdf8; }
-.result-a4-exp { background:#7f1d1d; border:2px solid #38bdf8; }
+.result-a4-exp { background:#991b1b; border:2px solid #38bdf8; }
 
 .result-f4-ok { background:#065f46; border:2px solid #22c55e; }
-.result-f4-exp { background:#7f1d1d; border:2px solid #22c55e; }
+.result-f4-exp { background:#991b1b; border:2px solid #22c55e; }
 
 /* HISTORY */
 table { width:100%; margin-top:15px; border-collapse:collapse; font-size:12px; }
@@ -41,6 +57,12 @@ th, td { padding:8px; border-bottom:1px solid #334155; }
 th { color:#94a3b8; text-align:left; }
 .ok { color:#22c55e; }
 .exp { color:#ef4444; }
+
+.clear-btn {
+background:#ef4444;
+color:white;
+margin-top:10px;
+}
 </style>
 </head>
 
@@ -51,16 +73,16 @@ th { color:#94a3b8; text-align:left; }
 
 <!-- A4 -->
 <div class="card a4">
-<div class="label a4">PPC Lokal A4</div>
-<div class="note">Max 2 bulan</div>
+<div class="label a4">PPC A4</div>
+<div class="note">Input kode / LOT • Max 2 bulan</div>
 <input id="a4_input" placeholder="Kode / LOT A4">
 <button onclick="processCode('A4')">Cek A4</button>
 </div>
 
 <!-- F4 -->
 <div class="card f4">
-<div class="label f4">PPC Lokal F4</div>
-<div class="note">Max 3 bulan</div>
+<div class="label f4">PPC F4</div>
+<div class="note">Input kode / LOT • Max 3 bulan</div>
 <input id="f4_input" placeholder="Kode / LOT F4">
 <button onclick="processCode('F4')">Cek F4</button>
 </div>
@@ -68,6 +90,8 @@ th { color:#94a3b8; text-align:left; }
 <div id="result"></div>
 
 <h3>History Scan</h3>
+<button class="clear-btn" onclick="clearHistory()">🗑️ Clear History</button>
+
 <table>
 <thead>
 <tr>
@@ -168,17 +192,19 @@ result.className = type==='A4'
 : (expired?"result-f4-exp":"result-f4-ok");
 
 result.innerHTML = `
-<h3>${expired?"EXPIRED / HOLD":"OK"}</h3>
-Type: ${type}<br>
-Kode: ${input}<br>
-Area: ${area}<br>
-Produksi: ${month}/${year}<br>
-Umur: ${diff(date)}
+<h3>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h3>
+<p>
+<strong>Type:</strong> ${type}<br>
+<strong>Kode:</strong> ${input}<br>
+<strong>Area:</strong> ${area}<br>
+<strong>Produksi:</strong> ${month}/${year}<br>
+<strong>Umur:</strong> ${diff(date)}
+</p>
 `;
 
 result.style.display="block";
 
-// 🔥 SAVE HISTORY
+// save history
 saveHistory({
 time:new Date().toLocaleString('id-ID'),
 type,
@@ -208,6 +234,13 @@ h.map(r=>`
 <td class="${r.status==='OK'?'ok':'exp'}">${r.status}</td>
 </tr>
 `).join("");
+}
+
+function clearHistory(){
+if(confirm("Yakin ingin menghapus semua history?")){
+    localStorage.removeItem("hist");
+    renderHistory();
+}
 }
 
 renderHistory();
