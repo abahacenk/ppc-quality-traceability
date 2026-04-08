@@ -84,8 +84,9 @@ let rem=days%30;
 return months+" bulan "+rem+" hari";
 }
 
+// ✅ UPDATED decodeShort (AREA FIX + VALIDASI)
 function decodeShort(code){
-const match=code.toUpperCase().match(/[A-Z]{2}[HIM]/);
+const match=code.toUpperCase().match(/[A-Z]{2}[HJM]/);
 if(!match) return null;
 
 let clean=match[0];
@@ -93,43 +94,45 @@ let y=letters.indexOf(clean[0]);
 let m=monthLetters.indexOf(clean[1]);
 let areaCode=clean[2];
 
+// ✅ AREA BARU
 const areaMap={H:"PM8",J:"PM9",M:"PM12"};
+
+// ✅ VALIDASI AREA
+if(!["H","J","M"].includes(areaCode)) return null;
+
 if(y<0||m<0) return null;
 
 return {
 date:new Date(yearStart+y,m,1),
 year:yearStart+y,
 month:m+1,
-area:areaMap[areaCode]||"Unknown",
+area:areaMap[areaCode],
 raw:clean
 };
 }
 
 function letterIndex(char){
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    return alphabet.indexOf(char.toUpperCase());
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+return alphabet.indexOf(char.toUpperCase());
 }
 
 function decodeLot(lot){
-    if(lot.length < 7) return null;
+if(lot.length < 7) return null;
 
-    // AREA dari karakter pertama
-    const areaNumber = letterIndex(lot[0]);
-    const area = "PM" + areaNumber;
+const areaNumber = letterIndex(lot[0]);
+const area = "PM" + areaNumber;
 
-    // Tahun
-    const yearCode = lot.substring(3,5);
-    const year = 2000 +
-        (parseInt(yearCode[0]) * 10) +
-        letterToNumber(yearCode[1]);
+const yearCode = lot.substring(3,5);
+const year = 2000 +
+(parseInt(yearCode[0]) * 10) +
+letterToNumber(yearCode[1]);
 
-    // Bulan
-    const monthCode = lot.substring(5,7);
-    const month =
-        (parseInt(monthCode[0]) * 10) +
-        letterToNumber(monthCode[1]);
+const monthCode = lot.substring(5,7);
+const month =
+(parseInt(monthCode[0]) * 10) +
+letterToNumber(monthCode[1]);
 
-    return { year, month, area };
+return { year, month, area };
 }
 
 window.processCode=function(textFromScanner){
@@ -140,38 +143,42 @@ let result=document.getElementById("result");
 let expired=false;
 let month,year,area="";
 
-if(input.length>8){ // LOT
+if(input.length>8){
 
-    let lot = decodeLot(input);
-    if(!lot){
-        alert("Format LOT tidak valid");
-        return;
-    }
-
-    year = lot.year;
-    month = lot.month;
-    area = lot.area;   // ✅ FIX DI SINI
-
-    let date = new Date(year, month-1, 1);
-    expired = monthDiff(date) > 2;
-
-    result.className = expired ? "red" : "green";
-    result.innerHTML = `
-    <h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
-    <p>
-    <strong>Kode:</strong> ${input}<br>
-    <strong>Area:</strong> ${area}<br>
-    <strong>Produksi:</strong> ${month}/${year}<br>
-    <strong>Umur:</strong> ${diff(date)}
-    </p>`;
-
-    result.style.display="block";
-
-    saveHistory(input, expired?"EXPIRED":"OK");
+let lot = decodeLot(input);
+if(!lot){
+alert("Format LOT tidak valid");
+return;
 }
-else{ // kode pendek
+
+year = lot.year;
+month = lot.month;
+area = lot.area;
+
+let date = new Date(year, month-1, 1);
+expired = monthDiff(date) > 2;
+
+result.className = expired ? "red" : "green";
+result.innerHTML = `
+<h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
+<p>
+<strong>Kode:</strong> ${input}<br>
+<strong>Area:</strong> ${area}<br>
+<strong>Produksi:</strong> ${month}/${year}<br>
+<strong>Umur:</strong> ${diff(date)}
+</p>`;
+
+result.style.display="block";
+
+saveHistory(input, expired?"EXPIRED":"OK");
+}
+else{
+
 let data=decodeShort(input);
-if(!data){ alert("Format tidak valid"); return; }
+if(!data){
+alert("Format kode pendek tidak valid (gunakan H/J/M)");
+return;
+}
 
 expired=monthDiff(data.date)>2;
 
@@ -216,20 +223,20 @@ let scanner = null;
 window.startCamera = async function() {
 
 if (typeof Html5Qrcode === "undefined") {
-    alert("Scanner tidak tersedia. Periksa koneksi internet.");
-    return;
+alert("Scanner tidak tersedia. Periksa koneksi internet.");
+return;
 }
 
 if(scanner) await scanner.clear();
 scanner = new Html5Qrcode("reader");
 
 scanner.start(
-    { facingMode:"environment" },
-    { fps:15, qrbox:{width:280,height:140}},
-    (text)=>{
-        processCode(text);
-        scanner.stop();
-    }
+{ facingMode:"environment" },
+{ fps:15, qrbox:{width:280,height:140}},
+(text)=>{
+processCode(text);
+scanner.stop();
+}
 );
 }
 
@@ -248,6 +255,4 @@ render();
 </script>
 
 </body>
-
 </html>
-
