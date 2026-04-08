@@ -5,62 +5,88 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PPC Quality & Traceability</title>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-
 <style>
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; margin: 0; padding: 16px; }
+body { font-family: 'Segoe UI'; background: #0f172a; color: white; padding: 16px; }
 .container { max-width: 520px; margin: auto; }
-h1 { text-align: center; color: #38bdf8; font-size: 24px; }
-.card { background: #1e293b; padding: 20px; border-radius: 16px; margin-bottom: 20px; }
-input, button { width: 100%; padding: 14px; margin-top: 10px; border-radius: 10px; border: none; font-size: 16px; box-sizing: border-box; }
-input { background: #334155; color: white; border: 1px solid #475569; }
-button { background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; }
-#reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; background: #000; }
-#result { margin-top: 15px; padding: 16px; border-radius: 14px; text-align: center; display: none; }
-.green { background: #065f46; border: 2px solid #10b981; display: block !important; }
-.red { background: #7f1d1d; border: 2px solid #ef4444; display: block !important; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { padding: 12px 8px; border-bottom: 1px solid #334155; text-align: left; }
-th { color: #94a3b8; text-transform: uppercase; font-size: 11px; }
+h1 { text-align: center; color: #38bdf8; }
+
+/* CARD */
+.card { padding: 16px; border-radius: 14px; margin-bottom: 16px; }
+.card.a4 { background: #1e3a5f; border: 2px solid #38bdf8; }
+.card.f4 { background: #1e4d3a; border: 2px solid #22c55e; }
+
+/* LABEL */
+.label {
+display: inline-block;
+padding: 4px 10px;
+border-radius: 999px;
+font-size: 12px;
+font-weight: bold;
+margin-bottom: 8px;
+}
+.label.a4 { background: #38bdf8; color: #0f172a; }
+.label.f4 { background: #22c55e; color: #022c22; }
+
+input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; }
+input { background: #334155; color: white; }
+button { background: #38bdf8; color: black; font-weight: bold; }
+
+.note { font-size: 12px; color: #cbd5f5; margin-top: 5px; }
+
+#result {
+margin-top: 15px;
+padding: 14px;
+border-radius: 10px;
+display:none;
+font-weight: 500;
+}
+
+/* RESULT COLORS */
+.result-a4-ok { background:#065f46; border:2px solid #38bdf8; }
+.result-a4-exp { background:#7f1d1d; border:2px solid #38bdf8; }
+
+.result-f4-ok { background:#065f46; border:2px solid #22c55e; }
+.result-f4-exp { background:#7f1d1d; border:2px solid #22c55e; }
+
 </style>
 </head>
 
 <body>
-
 <div class="container">
-<h1>PPC Quality & Traceability</h1>
 
-<div class="card">
-<input id="manual" placeholder="Input kode manual / LOT">
-<button onclick="processCode()">Submit</button>
+<h1>PPC Quality</h1>
 
-<hr style="border-top:1px solid #334155; margin:20px 0;">
+<!-- ================= A4 ================= -->
+<div class="card a4">
+<div class="label a4">PPC A4</div>
 
-<button onclick="startCamera()">Buka Kamera Scan</button>
-<div id="reader"></div>
+<div class="note">
+Input kode pendek (DAH) atau LOT.<br>
+Rule: maksimal umur 2 bulan.
+</div>
 
-<input type="file" accept="image/*" onchange="scanFile(event)">
+<input id="a4_input" placeholder="Input kode / LOT A4">
+<button onclick="processCode('A4')">Cek A4</button>
+</div>
+
+<!-- ================= F4 ================= -->
+<div class="card f4">
+<div class="label f4">PPC F4</div>
+
+<div class="note">
+Input kode pendek (DAH) atau LOT.<br>
+Rule: maksimal umur 3 bulan.
+</div>
+
+<input id="f4_input" placeholder="Input kode / LOT F4">
+<button onclick="processCode('F4')">Cek F4</button>
 </div>
 
 <div id="result"></div>
 
-<h3>Riwayat Pemindaian</h3>
-<table>
-<thead>
-<tr>
-<th>Waktu</th>
-<th>Kode</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="history"></tbody>
-</table>
-
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-
 const yearStart = 2022;
 const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const monthLetters = "ABCDEFGHJKLM";
@@ -84,30 +110,23 @@ let rem=days%30;
 return months+" bulan "+rem+" hari";
 }
 
-// ✅ UPDATED decodeShort (AREA FIX + VALIDASI)
 function decodeShort(code){
-const match=code.toUpperCase().match(/[A-Z]{2}[HJM]/);
-if(!match) return null;
-
-let clean=match[0];
-let y=letters.indexOf(clean[0]);
-let m=monthLetters.indexOf(clean[1]);
-let areaCode=clean[2];
-
-// ✅ AREA BARU
 const areaMap={H:"PM8",J:"PM9",M:"PM12"};
+let c=code.toUpperCase();
 
-// ✅ VALIDASI AREA
-if(!["H","J","M"].includes(areaCode)) return null;
+if(c.length < 3) return null;
 
-if(y<0||m<0) return null;
+let y=letters.indexOf(c[0]);
+let m=monthLetters.indexOf(c[1]);
+let area=areaMap[c[2]];
+
+if(y<0||m<0||!area) return null;
 
 return {
 date:new Date(yearStart+y,m,1),
 year:yearStart+y,
 month:m+1,
-area:areaMap[areaCode],
-raw:clean
+area:area
 };
 }
 
@@ -135,123 +154,61 @@ letterToNumber(monthCode[1]);
 return { year, month, area };
 }
 
-window.processCode=function(textFromScanner){
-const input=textFromScanner||document.getElementById("manual").value.trim();
+function processCode(type){
+
+let input = type === 'A4'
+? document.getElementById("a4_input").value.trim()
+: document.getElementById("f4_input").value.trim();
+
 if(!input) return;
 
 let result=document.getElementById("result");
-let expired=false;
-let month,year,area="";
+let limit = (type === 'A4') ? 2 : 3;
 
-if(input.length>8){
+let date, area, month, year;
 
+// decode
+if(input.length > 8){
 let lot = decodeLot(input);
-if(!lot){
-alert("Format LOT tidak valid");
-return;
-}
+if(!lot){ alert("Format LOT tidak valid"); return; }
 
 year = lot.year;
 month = lot.month;
 area = lot.area;
+date = new Date(year, month-1, 1);
 
-let date = new Date(year, month-1, 1);
-expired = monthDiff(date) > 2;
+}else{
+let data = decodeShort(input);
+if(!data){ alert("Format kode tidak valid"); return; }
 
-result.className = expired ? "red" : "green";
+date = data.date;
+area = data.area;
+month = data.month;
+year = data.year;
+}
+
+let expired = monthDiff(date) > limit;
+
+// SET CLASS WARNA
+if(type === 'A4'){
+result.className = expired ? "result-a4-exp" : "result-a4-ok";
+}else{
+result.className = expired ? "result-f4-exp" : "result-f4-ok";
+}
+
 result.innerHTML = `
-<h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
+<h3>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h3>
 <p>
+<strong>Type:</strong> ${type}<br>
 <strong>Kode:</strong> ${input}<br>
 <strong>Area:</strong> ${area}<br>
 <strong>Produksi:</strong> ${month}/${year}<br>
 <strong>Umur:</strong> ${diff(date)}
-</p>`;
+</p>
+`;
 
 result.style.display="block";
-
-saveHistory(input, expired?"EXPIRED":"OK");
 }
-else{
-
-let data=decodeShort(input);
-if(!data){
-alert("Format kode pendek tidak valid (gunakan H/J/M)");
-return;
-}
-
-expired=monthDiff(data.date)>2;
-
-result.className=expired?"red":"green";
-result.innerHTML=`
-<h2>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h2>
-<p>
-<strong>Kode:</strong> ${data.raw}<br>
-<strong>Area:</strong> ${data.area}<br>
-<strong>Produksi:</strong> ${data.month}/${data.year}<br>
-<strong>Umur:</strong> ${diff(data.date)}
-</p>`;
-result.style.display="block";
-
-saveHistory(data.raw,expired?"EXPIRED":"OK");
-}
-
-document.getElementById("manual").value="";
-}
-
-function saveHistory(code,status){
-let h=JSON.parse(localStorage.getItem("hist")||"[]");
-h.unshift({time:new Date().toLocaleString('id-ID'),code,status});
-if(h.length>50) h.pop();
-localStorage.setItem("hist",JSON.stringify(h));
-render();
-}
-
-function render(){
-let h=JSON.parse(localStorage.getItem("hist")||"[]");
-document.getElementById("history").innerHTML=
-h.map(r=>`
-<tr>
-<td>${r.time}</td>
-<td><strong>${r.code}</strong></td>
-<td style="color:${r.status==='OK'?'#10b981':'#ef4444'}">${r.status}</td>
-</tr>`).join("");
-}
-
-let scanner = null;
-
-window.startCamera = async function() {
-
-if (typeof Html5Qrcode === "undefined") {
-alert("Scanner tidak tersedia. Periksa koneksi internet.");
-return;
-}
-
-if(scanner) await scanner.clear();
-scanner = new Html5Qrcode("reader");
-
-scanner.start(
-{ facingMode:"environment" },
-{ fps:15, qrbox:{width:280,height:140}},
-(text)=>{
-processCode(text);
-scanner.stop();
-}
-);
-}
-
-window.scanFile=function(e){
-const file=e.target.files[0];
-if(!file) return;
-const html5QrCode=new Html5Qrcode("reader");
-html5QrCode.scanFile(file,true)
-.then(text=>processCode(text))
-.catch(()=>alert("Kode tidak terbaca"));
-}
-
-render();
-
-});
 </script>
 
 </body>
