@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PPC Quality & Traceability</title>
+<title>QC & Traceability Checker</title>
 
 <style>
 body { font-family: 'Segoe UI'; background: #0f172a; color: white; padding: 16px; }
@@ -22,8 +22,13 @@ font-size:12px;
 font-weight:bold;
 margin-bottom:8px;
 }
+
 .label.a4 { background:#38bdf8; color:#0f172a; }
 .label.f4 { background:#22c55e; color:#022c22; }
+
+.label.np { background:#f59e0b; color:#1f2937; }
+
+.card.np { background:#3a2e1e; border:2px solid #f59e0b; }
 
 input, button {
 width:100%;
@@ -32,6 +37,7 @@ margin-top:10px;
 border-radius:8px;
 border:none;
 }
+
 input { background:#334155; color:white; }
 button { background:#38bdf8; color:black; font-weight:bold; }
 
@@ -51,10 +57,14 @@ display:none;
 .result-f4-ok { background:#065f46; border:2px solid #22c55e; }
 .result-f4-exp { background:#991b1b; border:2px solid #22c55e; }
 
+.result-np-ok { background:#065f46; border:2px solid #f59e0b; }
+.result-np-exp { background:#991b1b; border:2px solid #f59e0b; }
+
 /* HISTORY */
 table { width:100%; margin-top:15px; border-collapse:collapse; font-size:12px; }
 th, td { padding:8px; border-bottom:1px solid #334155; }
 th { color:#94a3b8; text-align:left; }
+
 .ok { color:#22c55e; }
 .exp { color:#ef4444; }
 
@@ -69,12 +79,12 @@ margin-top:10px;
 <body>
 <div class="container">
 
-<h1>PPC (Lokal) Quality</h1>
+<h1>QC & Traceability Checker</h1>
 
 <!-- A4 -->
 <div class="card a4">
 <div class="label a4">PPC Lokal A4</div>
-<div class="note">Input kode / LOT • Max 2 bulan</div>
+<div class="note">Max 2 bulan</div>
 <input id="a4_input" placeholder="Kode / LOT A4">
 <button onclick="processCode('A4')">Cek A4</button>
 </div>
@@ -82,9 +92,17 @@ margin-top:10px;
 <!-- F4 -->
 <div class="card f4">
 <div class="label f4">PPC Lokal F4</div>
-<div class="note">Input kode / LOT • Max 3 bulan</div>
+<div class="note">Max 3 bulan</div>
 <input id="f4_input" placeholder="Kode / LOT F4">
 <button onclick="processCode('F4')">Cek F4</button>
+</div>
+
+<!-- NON PPC & ROLL -->
+<div class="card np">
+<div class="label np">NON PPC & ROLL</div>
+<div class="note">Batch 3 huruf • Max 12 bulan</div>
+<input id="np_input" placeholder="Contoh: ABC">
+<button onclick="processCode('NP')">Cek</button>
 </div>
 
 <div id="result"></div>
@@ -112,11 +130,25 @@ const yearStart = 2022;
 const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const monthLetters = "ABCDEFGHJKLM";
 
-function letterToNumber(char){
-const map={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,J:9};
-return map[char?.toUpperCase()] ?? 0;
+/* CONFIG */
+const config = {
+A4: { limit: 2, ok:'result-a4-ok', exp:'result-a4-exp' },
+F4: { limit: 3, ok:'result-f4-ok', exp:'result-f4-exp' },
+NP: { limit: 12, ok:'result-np-ok', exp:'result-np-exp' }
+};
+
+/* AUTO UPPERCASE */
+function forceUppercase(id){
+document.getElementById(id).addEventListener("input", function(){
+    this.value = this.value.toUpperCase().replace(/\s/g,'');
+});
 }
 
+forceUppercase("a4_input");
+forceUppercase("f4_input");
+forceUppercase("np_input");
+
+/* HELPERS */
 function monthDiff(date){
 const now=new Date();
 return (now.getFullYear()-date.getFullYear())*12+
@@ -131,6 +163,7 @@ let rem=days%30;
 return months+" bulan "+rem+" hari";
 }
 
+/* DECODE */
 function decodeShort(code){
 const areaMap={H:"PM8",J:"PM9",M:"PM12"};
 let c=code.toUpperCase();
@@ -144,6 +177,31 @@ if(y<0||m<0||!area) return null;
 return { date:new Date(yearStart+y,m,1), year:yearStart+y, month:m+1, area };
 }
 
+function decodeBatch3(code){
+const areaMap={H:"PM8",J:"PM9",M:"PM12"};
+let c=code.toUpperCase();
+
+if(c.length !== 3) return null;
+
+let y = letters.indexOf(c[0]);
+let m = monthLetters.indexOf(c[1]);
+let area = areaMap[c[2]] || c[2];
+
+if(y < 0 || m < 0) return null;
+
+return {
+    date: new Date(yearStart + y, m, 1),
+    year: yearStart + y,
+    month: m + 1,
+    area
+};
+}
+
+function letterToNumber(char){
+const map={A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,J:9};
+return map[char?.toUpperCase()] ?? 0;
+}
+
 function letterIndex(char){
 return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(char.toUpperCase());
 }
@@ -155,27 +213,39 @@ const area="PM"+letterIndex(lot[0]);
 const year=2000+(parseInt(lot[3])*10)+letterToNumber(lot[4]);
 const month=(parseInt(lot[5])*10)+letterToNumber(lot[6]);
 
+if(month<1 || month>12) return null;
+
 return { year, month, area };
 }
 
+/* MAIN */
 function processCode(type){
 
-let input = type==='A4'
-? document.getElementById("a4_input").value.trim()
-: document.getElementById("f4_input").value.trim();
+let input =
+type==='A4' ? document.getElementById("a4_input").value.trim() :
+type==='F4' ? document.getElementById("f4_input").value.trim() :
+document.getElementById("np_input").value.trim();
 
 if(!input) return;
 
-let limit = type==='A4'?2:3;
 let date, area, month, year;
 
-if(input.length>8){
+/* NP khusus */
+if(type==='NP'){
+let data = decodeBatch3(input);
+if(!data){
+    alert("Kode harus 3 huruf (contoh: ABC)");
+    return;
+}
+date=data.date; area=data.area; month=data.month; year=data.year;
+}
+/* A4 & F4 */
+else if(input.length>8){
 let lot=decodeLot(input);
 if(!lot){ alert("LOT tidak valid"); return; }
 
 year=lot.year; month=lot.month; area=lot.area;
 date=new Date(year,month-1,1);
-
 }else{
 let data=decodeShort(input);
 if(!data){ alert("Kode tidak valid"); return; }
@@ -183,13 +253,13 @@ if(!data){ alert("Kode tidak valid"); return; }
 date=data.date; area=data.area; month=data.month; year=data.year;
 }
 
-let expired = monthDiff(date)>limit;
+/* RESULT */
+let limit = config[type].limit;
+let expired = monthDiff(date) > limit;
 
 let result=document.getElementById("result");
 
-result.className = type==='A4'
-? (expired?"result-a4-exp":"result-a4-ok")
-: (expired?"result-f4-exp":"result-f4-ok");
+result.className = expired ? config[type].exp : config[type].ok;
 
 result.innerHTML = `
 <h3>${expired?"EXPIRED / HOLD":"OK - DAPAT DIKIRIM"}</h3>
@@ -204,7 +274,7 @@ result.innerHTML = `
 
 result.style.display="block";
 
-// save history
+/* SAVE HISTORY */
 saveHistory({
 time:new Date().toLocaleString('id-ID'),
 type,
@@ -214,6 +284,7 @@ status:expired?"EXPIRED":"OK"
 });
 }
 
+/* HISTORY */
 function saveHistory(data){
 let h=JSON.parse(localStorage.getItem("hist")||"[]");
 h.unshift(data);
@@ -237,7 +308,7 @@ h.map(r=>`
 }
 
 function clearHistory(){
-if(confirm("Yakin ingin menghapus semua history?")){
+if(confirm("Yakin hapus semua history?")){
     localStorage.removeItem("hist");
     renderHistory();
 }
